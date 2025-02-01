@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Space Shooter Game Mejorado</title>
     <style>
-      /* Incluir la fuente Star Jedi vía @font-face */
+      /* Incluir la fuente Star Jedi vía @font-face para asegurar su carga en móviles y ordenadores */
       @font-face {
         font-family: "Star Jedi";
         src: url("https://fonts.cdnfonts.com/s/18696/StarJedi.woff")
@@ -37,7 +37,7 @@
         left: 50%;
         transform: translate(-50%, -50%);
         font-size: 10vw;
-        color: rgba(255, 255, 255, 0.1); /* Menos transparente */
+        color: rgba(255, 255, 255, 0.02); /* En ordenador: muy sutil */
         pointer-events: none;
         text-align: center;
         z-index: 5;
@@ -95,8 +95,17 @@
       #restart:hover {
         transform: translateX(-50%) scale(1.1);
       }
-      /* Media query para optimizar en móviles */
+      /* Media query para dispositivos móviles */
       @media (max-width: 768px) {
+        #background-sign {
+          font-size: 15vw;
+          color: rgba(
+            255,
+            255,
+            255,
+            0.005
+          ); /* En móvil: aún más transparente para no interferir */
+        }
         #game-over {
           top: 43%;
           font-size: 8vw;
@@ -105,15 +114,12 @@
           top: 53%;
           font-size: 5vw;
         }
-        #background-sign {
-          font-size: 15vw;
-        }
       }
     </style>
   </head>
   <body>
-    <!-- Letrero de fondo dividido en dos líneas -->
-    <div id="background-sign">SURIA<br />AIRFORCES</div>
+    <!-- Letrero de fondo dividido en dos líneas: SURIA arriba y AIRLINES abajo -->
+    <div id="background-sign">SURIA<br />AIRLINES</div>
     <div id="score">Puntuación: 0</div>
     <div id="high-score">Récord: 0</div>
     <div id="game-over">GAME OVER</div>
