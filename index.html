@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Space Shooter Game Mejorado</title>
     <style>
-      /* Incluir la fuente Star Jedi vía @font-face para asegurar su carga en móviles y ordenadores */
+      /* Incluir la fuente Star Jedi vía @font-face */
       @font-face {
         font-family: "Star Jedi";
         src: url("https://fonts.cdnfonts.com/s/18696/StarJedi.woff")
@@ -42,6 +42,11 @@
         text-align: center;
         z-index: 5;
         font-family: "Star Jedi", "Arial", sans-serif;
+      }
+      /* Forzar que cada línea se mantenga junta */
+      #background-sign span {
+        display: block;
+        white-space: nowrap;
       }
       /* Elementos UI superiores */
       #score,
@@ -99,12 +104,7 @@
       @media (max-width: 768px) {
         #background-sign {
           font-size: 15vw;
-          color: rgba(
-            255,
-            255,
-            255,
-            0.005
-          ); /* En móvil: aún más transparente para no interferir */
+          color: rgba(255, 255, 255, 0.03); /* En móvil: un poco más visible */
         }
         #game-over {
           top: 43%;
@@ -118,10 +118,13 @@
     </style>
   </head>
   <body>
-    <!-- Letrero de fondo dividido en dos líneas: SURIA arriba y AIRLINES abajo -->
-    <div id="background-sign">SURIA<br />AIRLINES</div>
-    <div id="score">Puntuación: 0</div>
-    <div id="high-score">Récord: 0</div>
+    <!-- Letrero de fondo: SURIA en la primera línea y AIR FORCE en la segunda -->
+    <div id="background-sign">
+      <span>SURIA</span>
+      <span>AIR FORCE</span>
+    </div>
+    <div id="score">Score: 0</div>
+    <div id="high-score">Best: 0</div>
     <div id="game-over">GAME OVER</div>
     <button id="restart">Try Again</button>
     <canvas id="gameCanvas"></canvas>
@@ -174,7 +177,7 @@
       const highScoreDisplay = document.getElementById("high-score");
       const gameOverDisplay = document.getElementById("game-over");
       const restartButton = document.getElementById("restart");
-      highScoreDisplay.textContent = `Récord: ${highScore}`;
+      highScoreDisplay.textContent = `Best: ${highScore}`;
 
       // Sistema de partículas para estrellas
       const stars = Array.from({ length: CONFIG.STARS.COUNT }, () => ({
@@ -203,7 +206,6 @@
         draw() {
           ctx.save();
           ctx.translate(this.x, this.y);
-          // Dibujar cuerpo de la nave (forma de cohete)
           ctx.fillStyle = CONFIG.PLAYER.COLOR;
           ctx.beginPath();
           ctx.moveTo(0, -this.height / 2);
@@ -212,7 +214,6 @@
           ctx.lineTo(this.width / 2, this.height / 2);
           ctx.closePath();
           ctx.fill();
-          // Dibujar cabina (cockpit) como semicírculo brillante
           ctx.fillStyle = "#ffffff";
           ctx.beginPath();
           ctx.arc(0, -this.height / 4, this.width / 6, Math.PI, 0);
@@ -220,7 +221,6 @@
           ctx.restore();
         },
         update() {
-          // En desktop se usan las teclas para mover la nave
           if ((keys.ArrowLeft || keys.a) && this.x > this.width / 2)
             this.x -= CONFIG.PLAYER.SPEED;
           if (
@@ -258,30 +258,25 @@
       // Eventos táctiles para móviles: mover la nave con touchmove y disparar con un tap
       let touchStartX = null;
       let touchStartTime = null;
-
       canvas.addEventListener("touchstart", (e) => {
         e.preventDefault();
         const touch = e.touches[0];
         touchStartX = touch.clientX;
         touchStartTime = Date.now();
       });
-
       canvas.addEventListener("touchmove", (e) => {
         e.preventDefault();
         const touch = e.touches[0];
-        // Mover la nave según la posición horizontal del dedo
         player.x = Math.max(
           player.width / 2,
           Math.min(canvas.width - player.width / 2, touch.clientX)
         );
       });
-
       canvas.addEventListener("touchend", (e) => {
         e.preventDefault();
         const touch = e.changedTouches[0];
         const dx = Math.abs(touch.clientX - touchStartX);
         const touchDuration = Date.now() - touchStartTime;
-        // Si el desplazamiento es mínimo y la duración es corta, considerarlo un tap para disparar
         if (dx < 10 && touchDuration < 200) {
           player.shoot();
         }
@@ -303,7 +298,6 @@
           draw() {
             ctx.save();
             ctx.translate(this.x, this.y);
-            // Crear degradado radial para el alien
             const grd = ctx.createRadialGradient(
               0,
               0,
@@ -318,7 +312,6 @@
             ctx.beginPath();
             ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
             ctx.fill();
-            // Dibujar ojos
             ctx.fillStyle = "#000";
             ctx.beginPath();
             ctx.arc(
@@ -336,7 +329,6 @@
               Math.PI * 2
             );
             ctx.fill();
-            // Dibujar antenas
             ctx.strokeStyle = "#000";
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -353,7 +345,6 @@
         });
       }
 
-      // Función de colisión basada en centros
       function checkCollision(a, b) {
         const dx = a.x - b.x;
         const dy = a.y - b.y;
@@ -365,7 +356,6 @@
         );
       }
 
-      // Función de colisión para bala vs enemigo (rectángulo vs círculo)
       function checkBulletEnemyCollision(bullet, enemy) {
         const circleRadius = enemy.size / 2;
         const rectHalfWidth = bullet.WIDTH / 2;
@@ -381,12 +371,10 @@
         return cornerDistanceSq <= circleRadius * circleRadius;
       }
 
-      // Bucle principal del juego
       function gameLoop() {
         if (gameOver) return;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Fondo estelar
         stars.forEach((star) => {
           star.y += star.speed;
           if (star.y > canvas.height) {
@@ -399,11 +387,9 @@
           ctx.fill();
         });
 
-        // Actualizar y dibujar jugador
         player.update();
         player.draw();
 
-        // Actualizar y dibujar balas y verificar colisiones
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           bullet.y += bullet.dy;
@@ -418,7 +404,7 @@
             const enemy = enemies[j];
             if (checkBulletEnemyCollision(bullet, enemy)) {
               score += CONFIG.SCORING.HIT_POINTS;
-              scoreDisplay.textContent = `Puntuación: ${score}`;
+              scoreDisplay.textContent = `Score: ${score}`;
               explosions.push({
                 x: enemy.x,
                 y: enemy.y,
@@ -435,7 +421,6 @@
           }
         }
 
-        // Actualizar y dibujar enemigos
         for (let i = enemies.length - 1; i >= 0; i--) {
           const enemy = enemies[i];
           enemy.update();
@@ -445,7 +430,7 @@
             if (score > highScore) {
               highScore = score;
               localStorage.setItem("highScore", highScore);
-              highScoreDisplay.textContent = `Récord: ${highScore}`;
+              highScoreDisplay.textContent = `Best: ${highScore}`;
             }
           }
           if (enemy.y > canvas.height + enemy.size) {
@@ -453,7 +438,6 @@
           }
         }
 
-        // Actualizar y dibujar explosiones
         for (let i = explosions.length - 1; i >= 0; i--) {
           const explosion = explosions[i];
           explosion.radius += explosion.expansionRate;
@@ -477,11 +461,10 @@
         }
       }
 
-      // Reinicio del juego
       restartButton.addEventListener("click", () => {
         gameOver = false;
         score = 0;
-        scoreDisplay.textContent = "Puntuación: 0";
+        scoreDisplay.textContent = "Score: 0";
         gameOverDisplay.style.display = "none";
         restartButton.style.display = "none";
         bullets.length = 0;
@@ -492,14 +475,12 @@
         gameLoop();
       });
 
-      // Ajuste de pantalla
       window.addEventListener("resize", () => {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         player.x = canvas.width / 2;
       });
 
-      // Iniciar juego
       enemySpawner = setInterval(spawnEnemy, CONFIG.ENEMY.SPAWN_INTERVAL);
       gameLoop();
     </script>
