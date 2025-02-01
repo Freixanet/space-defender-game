@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Space Shooter Game Mejorado</title>
+    <!-- Se incluye la fuente Star Jedi desde un CDN -->
+    <link href="https://fonts.cdnfonts.com/css/star-jedi" rel="stylesheet" />
     <style>
       /* Estilos base */
       body {
@@ -21,10 +23,22 @@
       canvas {
         display: block;
       }
+      /* Letrero de fondo al estilo Star Wars */
+      #background-sign {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 10vw;
+        color: rgba(255, 255, 255, 0.02); /* Aún más transparente */
+        pointer-events: none;
+        text-align: center;
+        z-index: 5;
+        font-family: "Star Jedi", sans-serif;
+      }
+      /* Elementos UI superiores */
       #score,
-      #high-score,
-      #game-over,
-      #restart {
+      #high-score {
         z-index: 10;
         position: fixed;
         text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
@@ -41,19 +55,26 @@
         color: #ffffff;
         font-size: min(4vw, 18px);
       }
-      #game-over {
-        top: 50%;
+      /* Mensaje de Game Over y botón de reinicio */
+      #game-over,
+      #restart {
+        z-index: 10;
+        position: fixed;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
         left: 50%;
-        transform: translate(-50%, -50%);
-        color: #fff;
-        font-size: min(8vw, 36px);
-        display: none;
+        transform: translateX(-50%);
         text-align: center;
       }
+      #game-over {
+        top: 43%; /* Ligeramente arriba */
+        color: #fff;
+        font-size: min(8vw, 36px);
+        margin-bottom: 10px;
+        white-space: nowrap;
+        display: none; /* Oculto por defecto */
+      }
       #restart {
-        top: calc(50% + 60px);
-        left: 50%;
-        transform: translate(-50%, -50%);
+        top: 53%; /* Separado un poco más del GAME OVER */
         padding: 12px 24px;
         font-size: min(4vw, 18px);
         background: #ff4136;
@@ -65,15 +86,31 @@
         transition: transform 0.2s;
       }
       #restart:hover {
-        transform: translate(-50%, -50%) scale(1.1);
+        transform: translateX(-50%) scale(1.1);
+      }
+      /* Media query para optimizar en móviles */
+      @media (max-width: 768px) {
+        #game-over {
+          top: 43%;
+          font-size: 8vw;
+        }
+        #restart {
+          top: 53%;
+          font-size: 5vw;
+        }
+        #background-sign {
+          font-size: 15vw;
+        }
       }
     </style>
   </head>
   <body>
+    <!-- Letrero de fondo dividido en dos líneas -->
+    <div id="background-sign">SURIA<br />AIRFORCE</div>
     <div id="score">Puntuación: 0</div>
     <div id="high-score">Récord: 0</div>
-    <div id="game-over">¡Juego Terminado!</div>
-    <button id="restart">Reiniciar</button>
+    <div id="game-over">GAME OVER</div>
+    <button id="restart">Try Again</button>
     <canvas id="gameCanvas"></canvas>
 
     <script>
@@ -205,7 +242,7 @@
       });
       window.addEventListener("keyup", (e) => (keys[e.key] = false));
 
-      // Eventos táctiles para móviles
+      // Eventos táctiles para móviles: mover la nave con touchmove y disparar con un tap
       let touchStartX = null;
       let touchStartTime = null;
 
@@ -219,7 +256,7 @@
       canvas.addEventListener("touchmove", (e) => {
         e.preventDefault();
         const touch = e.touches[0];
-        // Mover la nave a la posición horizontal del dedo
+        // Mover la nave según la posición horizontal del dedo
         player.x = Math.max(
           player.width / 2,
           Math.min(canvas.width - player.width / 2, touch.clientX)
@@ -231,7 +268,7 @@
         const touch = e.changedTouches[0];
         const dx = Math.abs(touch.clientX - touchStartX);
         const touchDuration = Date.now() - touchStartTime;
-        // Si el desplazamiento es mínimo y la duración corta, considerarlo un tap para disparar
+        // Si el desplazamiento es mínimo y la duración es corta, considerarlo un tap para disparar
         if (dx < 10 && touchDuration < 200) {
           player.shoot();
         }
