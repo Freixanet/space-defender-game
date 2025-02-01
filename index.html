@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Space Shooter Game Mejorado</title>
     <style>
-      /* Estilos mejorados con transiciones y tamaños responsive */
+      /* Estilos base */
       body {
         margin: 0;
         padding: 0;
@@ -21,38 +21,36 @@
       canvas {
         display: block;
       }
-      #score {
+      #score,
+      #high-score,
+      #game-over,
+      #restart {
+        z-index: 10;
         position: fixed;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      }
+      #score {
         top: 20px;
         left: 20px;
         color: #ffffff;
         font-size: min(5vw, 24px);
-        z-index: 10;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
       }
       #high-score {
-        position: fixed;
         top: 20px;
         right: 20px;
         color: #ffffff;
         font-size: min(4vw, 18px);
-        z-index: 10;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
       }
       #game-over {
-        position: fixed;
         top: 50%;
         left: 50%;
         transform: translate(-50%, -50%);
         color: #fff;
         font-size: min(8vw, 36px);
-        z-index: 10;
         display: none;
         text-align: center;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
       }
       #restart {
-        position: fixed;
         top: calc(50% + 60px);
         left: 50%;
         transform: translate(-50%, -50%);
@@ -63,12 +61,38 @@
         border: none;
         border-radius: 5px;
         cursor: pointer;
-        z-index: 10;
         display: none;
         transition: transform 0.2s;
       }
       #restart:hover {
         transform: translate(-50%, -50%) scale(1.1);
+      }
+      /* Controles táctiles para móviles */
+      #mobile-controls {
+        position: fixed;
+        bottom: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        display: flex;
+        gap: 20px;
+        z-index: 20;
+      }
+      #mobile-controls button {
+        background: rgba(0, 0, 0, 0.5);
+        border: none;
+        border-radius: 50%;
+        color: #fff;
+        font-size: 24px;
+        width: 60px;
+        height: 60px;
+        outline: none;
+        touch-action: none;
+      }
+      /* Mostrar controles táctiles solo en pantallas pequeñas */
+      @media (min-width: 768px) {
+        #mobile-controls {
+          display: none;
+        }
       }
     </style>
   </head>
@@ -78,6 +102,12 @@
     <div id="game-over">¡Juego Terminado!</div>
     <button id="restart">Reiniciar</button>
     <canvas id="gameCanvas"></canvas>
+    <!-- Controles móviles -->
+    <div id="mobile-controls">
+      <button id="btn-left">←</button>
+      <button id="btn-shoot">★</button>
+      <button id="btn-right">→</button>
+    </div>
 
     <script>
       // Configuración con constantes ajustables
@@ -98,7 +128,6 @@
           BASE_SPEED: 2,
           SIZE_VARIATION: [30, 50],
           SPAWN_INTERVAL: 1000,
-          // Color base para el degradado
           COLOR: "#4CAF50",
         },
         STARS: {
@@ -157,13 +186,13 @@
         draw() {
           ctx.save();
           ctx.translate(this.x, this.y);
-          // Dibujar cuerpo de la nave con forma de "cohete"
+          // Dibujar cuerpo de la nave con forma de cohete
           ctx.fillStyle = CONFIG.PLAYER.COLOR;
           ctx.beginPath();
-          ctx.moveTo(0, -this.height / 2); // Punta superior
-          ctx.lineTo(-this.width / 2, this.height / 2); // Ala izquierda inferior
-          ctx.lineTo(0, this.height / 4); // Punto central inferior
-          ctx.lineTo(this.width / 2, this.height / 2); // Ala derecha inferior
+          ctx.moveTo(0, -this.height / 2);
+          ctx.lineTo(-this.width / 2, this.height / 2);
+          ctx.lineTo(0, this.height / 4);
+          ctx.lineTo(this.width / 2, this.height / 2);
           ctx.closePath();
           ctx.fill();
           // Dibujar cabina (cockpit) como un semicírculo brillante
@@ -187,7 +216,7 @@
           if (this.cooldown === 0) {
             bullets.push({
               x: this.x,
-              y: this.y - this.height / 2, // Posición central de la bala
+              y: this.y - this.height / 2,
               dy: -CONFIG.BULLET.SPEED,
               ...CONFIG.BULLET,
             });
@@ -201,12 +230,40 @@
       const enemies = [];
       let enemySpawner;
 
-      // Eventos de control
+      // Eventos de teclado
       window.addEventListener("keydown", (e) => {
         if (e.code === "Space") player.shoot();
         keys[e.key] = true;
       });
       window.addEventListener("keyup", (e) => (keys[e.key] = false));
+
+      // Eventos para controles táctiles
+      const btnLeft = document.getElementById("btn-left");
+      const btnRight = document.getElementById("btn-right");
+      const btnShoot = document.getElementById("btn-shoot");
+
+      btnLeft.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        keys.ArrowLeft = true;
+      });
+      btnLeft.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        keys.ArrowLeft = false;
+      });
+
+      btnRight.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        keys.ArrowRight = true;
+      });
+      btnRight.addEventListener("touchend", (e) => {
+        e.preventDefault();
+        keys.ArrowRight = false;
+      });
+
+      btnShoot.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        player.shoot();
+      });
 
       // Función para generar enemigos (aliens)
       function spawnEnemy() {
@@ -222,7 +279,7 @@
           draw() {
             ctx.save();
             ctx.translate(this.x, this.y);
-            // Crear un degradado radial para el cuerpo del alien
+            // Crear degradado radial para el alien
             const grd = ctx.createRadialGradient(
               0,
               0,
@@ -255,7 +312,7 @@
               Math.PI * 2
             );
             ctx.fill();
-            // Dibujar antenas para mayor realismo
+            // Dibujar antenas
             ctx.strokeStyle = "#000";
             ctx.lineWidth = 2;
             ctx.beginPath();
@@ -272,7 +329,7 @@
         });
       }
 
-      // Función para detectar colisiones entre objetos basados en centros
+      // Función de colisión (basada en centros)
       function checkCollision(a, b) {
         const dx = a.x - b.x;
         const dy = a.y - b.y;
@@ -284,19 +341,17 @@
         );
       }
 
-      // Función de colisión para bala (rectángulo) vs enemigo (círculo)
+      // Función de colisión para bala vs enemigo (rectángulo vs círculo)
       function checkBulletEnemyCollision(bullet, enemy) {
         const circleRadius = enemy.size / 2;
         const rectHalfWidth = bullet.WIDTH / 2;
         const rectHalfHeight = bullet.HEIGHT / 2;
         const dx = Math.abs(bullet.x - enemy.x);
         const dy = Math.abs(bullet.y - enemy.y);
-
         if (dx > rectHalfWidth + circleRadius) return false;
         if (dy > rectHalfHeight + circleRadius) return false;
         if (dx <= rectHalfWidth) return true;
         if (dy <= rectHalfHeight) return true;
-
         const cornerDistanceSq =
           (dx - rectHalfWidth) ** 2 + (dy - rectHalfHeight) ** 2;
         return cornerDistanceSq <= circleRadius * circleRadius;
@@ -320,16 +375,15 @@
           ctx.fill();
         });
 
-        // Actualizar y dibujar jugador (nave)
+        // Actualizar y dibujar jugador
         player.update();
         player.draw();
 
-        // Actualizar y dibujar balas y verificar colisiones (bucle invertido)
+        // Actualizar y dibujar balas y colisiones
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           bullet.y += bullet.dy;
           ctx.fillStyle = bullet.COLOR;
-          // Dibujar la bala centrada
           ctx.fillRect(
             bullet.x - bullet.WIDTH / 2,
             bullet.y - bullet.HEIGHT / 2,
@@ -337,13 +391,11 @@
             bullet.HEIGHT
           );
 
-          // Verificar colisión bala-enemigo usando la detección específica
           for (let j = enemies.length - 1; j >= 0; j--) {
             const enemy = enemies[j];
             if (checkBulletEnemyCollision(bullet, enemy)) {
               score += CONFIG.SCORING.HIT_POINTS;
               scoreDisplay.textContent = `Puntuación: ${score}`;
-              // Crear efecto de explosión en la posición del enemigo
               explosions.push({
                 x: enemy.x,
                 y: enemy.y,
@@ -353,7 +405,6 @@
                 expansionRate: 3,
                 fadeRate: 0.03,
               });
-              // Eliminar la bala y el enemigo
               bullets.splice(i, 1);
               enemies.splice(j, 1);
               break;
@@ -361,13 +412,12 @@
           }
         }
 
-        // Actualizar y dibujar enemigos (aliens)
+        // Actualizar y dibujar enemigos
         for (let i = enemies.length - 1; i >= 0; i--) {
           const enemy = enemies[i];
           enemy.update();
           enemy.draw();
 
-          // Comprobar colisión entre jugador y enemigo
           if (checkCollision(player, enemy)) {
             gameOver = true;
             if (score > highScore) {
@@ -376,7 +426,6 @@
               highScoreDisplay.textContent = `Récord: ${highScore}`;
             }
           }
-          // Eliminar enemigo si sale de la pantalla
           if (enemy.y > canvas.height + enemy.size) {
             enemies.splice(i, 1);
           }
