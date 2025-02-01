@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Space Shooter Game Mejorado</title>
+    <style>
+      /* Estilos mejorados con transiciones y tamaños responsive */
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: radial-gradient(
+          ellipse at bottom,
+          #1b2735 0%,
+          #090a0f 100%
+        );
+        font-family: "Arial", sans-serif;
+        touch-action: none;
+      }
+      canvas {
+        display: block;
+      }
+      #score {
+        position: fixed;
+        top: 20px;
+        left: 20px;
+        color: #ffffff;
+        font-size: min(5vw, 24px);
+        z-index: 10;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      }
+      #high-score {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        color: #ffffff;
+        font-size: min(4vw, 18px);
+        z-index: 10;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      }
+      #game-over {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        font-size: min(8vw, 36px);
+        z-index: 10;
+        display: none;
+        text-align: center;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+      }
+      #restart {
+        position: fixed;
+        top: calc(50% + 60px);
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 12px 24px;
+        font-size: min(4vw, 18px);
+        background: #ff4136;
+        color: white;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        z-index: 10;
+        display: none;
+        transition: transform 0.2s;
+      }
+      #restart:hover {
+        transform: translate(-50%, -50%) scale(1.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="score">Puntuación: 0</div>
+    <div id="high-score">Récord: 0</div>
+    <div id="game-over">¡Juego Terminado!</div>
+    <button id="restart">Reiniciar</button>
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+      // Configuración con constantes ajustables
+      const CONFIG = {
+        PLAYER: {
+          SPEED: 8,
+          SIZE: 40,
+          COOLDOWN: 10,
+          COLOR: "#00d8ff",
+        },
+        BULLET: {
+          SPEED: 12,
+          WIDTH: 4,
+          HEIGHT: 10,
+          COLOR: "#f1c40f",
+        },
+        ENEMY: {
+          BASE_SPEED: 2,
+          SIZE_VARIATION: [30, 50],
+          SPAWN_INTERVAL: 1000,
+          // Color base para el degradado
+          COLOR: "#4CAF50",
+        },
+        STARS: {
+          COUNT: 200,
+          SPEED_RANGE: [0.2, 0.8],
+          SIZE_RANGE: [0.5, 2],
+        },
+        SCORING: {
+          HIT_POINTS: 10,
+          SPEED_INCREASE_INTERVAL: 500,
+        },
+      };
+
+      // Inicialización del canvas y contexto
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      let score = 0;
+      let highScore = localStorage.getItem("highScore") || 0;
+      let gameOver = false;
+      let keys = {};
+
+      // Elementos UI
+      const scoreDisplay = document.getElementById("score");
+      const highScoreDisplay = document.getElementById("high-score");
+      const gameOverDisplay = document.getElementById("game-over");
+      const restartButton = document.getElementById("restart");
+      highScoreDisplay.textContent = `Récord: ${highScore}`;
+
+      // Sistema de partículas para estrellas
+      const stars = Array.from({ length: CONFIG.STARS.COUNT }, () => ({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size:
+          Math.random() *
+            (CONFIG.STARS.SIZE_RANGE[1] - CONFIG.STARS.SIZE_RANGE[0]) +
+          CONFIG.STARS.SIZE_RANGE[0],
+        speed:
+          Math.random() *
+            (CONFIG.STARS.SPEED_RANGE[1] - CONFIG.STARS.SPEED_RANGE[0]) +
+          CONFIG.STARS.SPEED_RANGE[0],
+      }));
+
+      // Array para explosiones
+      const explosions = [];
+
+      // Objeto jugador (nave espacial)
+      const player = {
+        x: canvas.width / 2,
+        y: canvas.height - 60,
+        width: CONFIG.PLAYER.SIZE,
+        height: CONFIG.PLAYER.SIZE,
+        cooldown: 0,
+        draw() {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          // Dibujar cuerpo de la nave con forma de "cohete"
+          ctx.fillStyle = CONFIG.PLAYER.COLOR;
+          ctx.beginPath();
+          ctx.moveTo(0, -this.height / 2); // Punta superior
+          ctx.lineTo(-this.width / 2, this.height / 2); // Ala izquierda inferior
+          ctx.lineTo(0, this.height / 4); // Punto central inferior
+          ctx.lineTo(this.width / 2, this.height / 2); // Ala derecha inferior
+          ctx.closePath();
+          ctx.fill();
+          // Dibujar cabina (cockpit) como un semicírculo brillante
+          ctx.fillStyle = "#ffffff";
+          ctx.beginPath();
+          ctx.arc(0, -this.height / 4, this.width / 6, Math.PI, 0);
+          ctx.fill();
+          ctx.restore();
+        },
+        update() {
+          if ((keys.ArrowLeft || keys.a) && this.x > this.width / 2)
+            this.x -= CONFIG.PLAYER.SPEED;
+          if (
+            (keys.ArrowRight || keys.d) &&
+            this.x < canvas.width - this.width / 2
+          )
+            this.x += CONFIG.PLAYER.SPEED;
+          this.cooldown = Math.max(0, this.cooldown - 1);
+        },
+        shoot() {
+          if (this.cooldown === 0) {
+            bullets.push({
+              x: this.x,
+              y: this.y - this.height / 2, // Posición central de la bala
+              dy: -CONFIG.BULLET.SPEED,
+              ...CONFIG.BULLET,
+            });
+            this.cooldown = CONFIG.PLAYER.COOLDOWN;
+          }
+        },
+      };
+
+      // Arrays para balas y enemigos
+      const bullets = [];
+      const enemies = [];
+      let enemySpawner;
+
+      // Eventos de control
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "Space") player.shoot();
+        keys[e.key] = true;
+      });
+      window.addEventListener("keyup", (e) => (keys[e.key] = false));
+
+      // Función para generar enemigos (aliens)
+      function spawnEnemy() {
+        const size =
+          Math.random() *
+            (CONFIG.ENEMY.SIZE_VARIATION[1] - CONFIG.ENEMY.SIZE_VARIATION[0]) +
+          CONFIG.ENEMY.SIZE_VARIATION[0];
+        enemies.push({
+          x: Math.random() * (canvas.width - size) + size / 2,
+          y: -size,
+          size,
+          speed: CONFIG.ENEMY.BASE_SPEED + score * 0.005,
+          draw() {
+            ctx.save();
+            ctx.translate(this.x, this.y);
+            // Crear un degradado radial para el cuerpo del alien
+            const grd = ctx.createRadialGradient(
+              0,
+              0,
+              this.size / 4,
+              0,
+              0,
+              this.size / 2
+            );
+            grd.addColorStop(0, "#7FDBFF");
+            grd.addColorStop(1, CONFIG.ENEMY.COLOR);
+            ctx.fillStyle = grd;
+            ctx.beginPath();
+            ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
+            ctx.fill();
+            // Dibujar ojos
+            ctx.fillStyle = "#000";
+            ctx.beginPath();
+            ctx.arc(
+              -this.size / 5,
+              -this.size / 10,
+              this.size / 10,
+              0,
+              Math.PI * 2
+            );
+            ctx.arc(
+              this.size / 5,
+              -this.size / 10,
+              this.size / 10,
+              0,
+              Math.PI * 2
+            );
+            ctx.fill();
+            // Dibujar antenas para mayor realismo
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(-this.size / 8, -this.size / 2);
+            ctx.lineTo(-this.size / 4, -this.size / 1.5);
+            ctx.moveTo(this.size / 8, -this.size / 2);
+            ctx.lineTo(this.size / 4, -this.size / 1.5);
+            ctx.stroke();
+            ctx.restore();
+          },
+          update() {
+            this.y += this.speed;
+          },
+        });
+      }
+
+      // Función para detectar colisiones entre objetos basados en centros
+      function checkCollision(a, b) {
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        const distance = Math.hypot(dx, dy);
+        return (
+          distance <
+          (a.size ? a.size / 2 : Math.max(a.width, a.height) / 2) +
+            (b.size ? b.size / 2 : Math.max(b.width, b.height) / 2)
+        );
+      }
+
+      // Función de colisión para bala (rectángulo) vs enemigo (círculo)
+      function checkBulletEnemyCollision(bullet, enemy) {
+        const circleRadius = enemy.size / 2;
+        const rectHalfWidth = bullet.WIDTH / 2;
+        const rectHalfHeight = bullet.HEIGHT / 2;
+        const dx = Math.abs(bullet.x - enemy.x);
+        const dy = Math.abs(bullet.y - enemy.y);
+
+        if (dx > rectHalfWidth + circleRadius) return false;
+        if (dy > rectHalfHeight + circleRadius) return false;
+        if (dx <= rectHalfWidth) return true;
+        if (dy <= rectHalfHeight) return true;
+
+        const cornerDistanceSq =
+          (dx - rectHalfWidth) ** 2 + (dy - rectHalfHeight) ** 2;
+        return cornerDistanceSq <= circleRadius * circleRadius;
+      }
+
+      // Bucle principal del juego
+      function gameLoop() {
+        if (gameOver) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Fondo estelar
+        stars.forEach((star) => {
+          star.y += star.speed;
+          if (star.y > canvas.height) {
+            star.y = 0;
+            star.x = Math.random() * canvas.width;
+          }
+          ctx.fillStyle = "#fff";
+          ctx.beginPath();
+          ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+          ctx.fill();
+        });
+
+        // Actualizar y dibujar jugador (nave)
+        player.update();
+        player.draw();
+
+        // Actualizar y dibujar balas y verificar colisiones (bucle invertido)
+        for (let i = bullets.length - 1; i >= 0; i--) {
+          const bullet = bullets[i];
+          bullet.y += bullet.dy;
+          ctx.fillStyle = bullet.COLOR;
+          // Dibujar la bala centrada
+          ctx.fillRect(
+            bullet.x - bullet.WIDTH / 2,
+            bullet.y - bullet.HEIGHT / 2,
+            bullet.WIDTH,
+            bullet.HEIGHT
+          );
+
+          // Verificar colisión bala-enemigo usando la detección específica
+          for (let j = enemies.length - 1; j >= 0; j--) {
+            const enemy = enemies[j];
+            if (checkBulletEnemyCollision(bullet, enemy)) {
+              score += CONFIG.SCORING.HIT_POINTS;
+              scoreDisplay.textContent = `Puntuación: ${score}`;
+              // Crear efecto de explosión en la posición del enemigo
+              explosions.push({
+                x: enemy.x,
+                y: enemy.y,
+                radius: 0,
+                maxRadius: enemy.size * 1.5,
+                alpha: 1,
+                expansionRate: 3,
+                fadeRate: 0.03,
+              });
+              // Eliminar la bala y el enemigo
+              bullets.splice(i, 1);
+              enemies.splice(j, 1);
+              break;
+            }
+          }
+        }
+
+        // Actualizar y dibujar enemigos (aliens)
+        for (let i = enemies.length - 1; i >= 0; i--) {
+          const enemy = enemies[i];
+          enemy.update();
+          enemy.draw();
+
+          // Comprobar colisión entre jugador y enemigo
+          if (checkCollision(player, enemy)) {
+            gameOver = true;
+            if (score > highScore) {
+              highScore = score;
+              localStorage.setItem("highScore", highScore);
+              highScoreDisplay.textContent = `Récord: ${highScore}`;
+            }
+          }
+          // Eliminar enemigo si sale de la pantalla
+          if (enemy.y > canvas.height + enemy.size) {
+            enemies.splice(i, 1);
+          }
+        }
+
+        // Actualizar y dibujar explosiones
+        for (let i = explosions.length - 1; i >= 0; i--) {
+          const explosion = explosions[i];
+          explosion.radius += explosion.expansionRate;
+          explosion.alpha -= explosion.fadeRate;
+          if (explosion.alpha <= 0) {
+            explosions.splice(i, 1);
+            continue;
+          }
+          ctx.beginPath();
+          ctx.arc(explosion.x, explosion.y, explosion.radius, 0, Math.PI * 2);
+          ctx.fillStyle = `rgba(255, 165, 0, ${explosion.alpha})`;
+          ctx.fill();
+        }
+
+        if (!gameOver) {
+          requestAnimationFrame(gameLoop);
+        } else {
+          gameOverDisplay.style.display = "block";
+          restartButton.style.display = "block";
+          clearInterval(enemySpawner);
+        }
+      }
+
+      // Reinicio del juego
+      restartButton.addEventListener("click", () => {
+        gameOver = false;
+        score = 0;
+        scoreDisplay.textContent = "Puntuación: 0";
+        gameOverDisplay.style.display = "none";
+        restartButton.style.display = "none";
+        bullets.length = 0;
+        enemies.length = 0;
+        explosions.length = 0;
+        player.x = canvas.width / 2;
+        enemySpawner = setInterval(spawnEnemy, CONFIG.ENEMY.SPAWN_INTERVAL);
+        gameLoop();
+      });
+
+      // Ajuste de pantalla
+      window.addEventListener("resize", () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        player.x = canvas.width / 2;
+      });
+
+      // Iniciar juego
+      enemySpawner = setInterval(spawnEnemy, CONFIG.ENEMY.SPAWN_INTERVAL);
+      gameLoop();
+    </script>
+  </body>
+</html>
