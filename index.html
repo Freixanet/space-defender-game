@@ -67,33 +67,6 @@
       #restart:hover {
         transform: translate(-50%, -50%) scale(1.1);
       }
-      /* Controles táctiles para móviles */
-      #mobile-controls {
-        position: fixed;
-        bottom: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        display: flex;
-        gap: 20px;
-        z-index: 20;
-      }
-      #mobile-controls button {
-        background: rgba(0, 0, 0, 0.5);
-        border: none;
-        border-radius: 50%;
-        color: #fff;
-        font-size: 24px;
-        width: 60px;
-        height: 60px;
-        outline: none;
-        touch-action: none;
-      }
-      /* Mostrar controles táctiles solo en pantallas pequeñas */
-      @media (min-width: 768px) {
-        #mobile-controls {
-          display: none;
-        }
-      }
     </style>
   </head>
   <body>
@@ -102,12 +75,6 @@
     <div id="game-over">¡Juego Terminado!</div>
     <button id="restart">Reiniciar</button>
     <canvas id="gameCanvas"></canvas>
-    <!-- Controles móviles -->
-    <div id="mobile-controls">
-      <button id="btn-left">←</button>
-      <button id="btn-shoot">★</button>
-      <button id="btn-right">→</button>
-    </div>
 
     <script>
       // Configuración con constantes ajustables
@@ -186,7 +153,7 @@
         draw() {
           ctx.save();
           ctx.translate(this.x, this.y);
-          // Dibujar cuerpo de la nave con forma de cohete
+          // Dibujar cuerpo de la nave (forma de cohete)
           ctx.fillStyle = CONFIG.PLAYER.COLOR;
           ctx.beginPath();
           ctx.moveTo(0, -this.height / 2);
@@ -195,7 +162,7 @@
           ctx.lineTo(this.width / 2, this.height / 2);
           ctx.closePath();
           ctx.fill();
-          // Dibujar cabina (cockpit) como un semicírculo brillante
+          // Dibujar cabina (cockpit) como semicírculo brillante
           ctx.fillStyle = "#ffffff";
           ctx.beginPath();
           ctx.arc(0, -this.height / 4, this.width / 6, Math.PI, 0);
@@ -203,6 +170,7 @@
           ctx.restore();
         },
         update() {
+          // En desktop se usan las teclas para mover la nave
           if ((keys.ArrowLeft || keys.a) && this.x > this.width / 2)
             this.x -= CONFIG.PLAYER.SPEED;
           if (
@@ -230,39 +198,45 @@
       const enemies = [];
       let enemySpawner;
 
-      // Eventos de teclado
+      // Eventos de teclado para desktop
       window.addEventListener("keydown", (e) => {
         if (e.code === "Space") player.shoot();
         keys[e.key] = true;
       });
       window.addEventListener("keyup", (e) => (keys[e.key] = false));
 
-      // Eventos para controles táctiles
-      const btnLeft = document.getElementById("btn-left");
-      const btnRight = document.getElementById("btn-right");
-      const btnShoot = document.getElementById("btn-shoot");
+      // Eventos táctiles para móviles
+      let touchStartX = null;
+      let touchStartTime = null;
 
-      btnLeft.addEventListener("touchstart", (e) => {
+      canvas.addEventListener("touchstart", (e) => {
         e.preventDefault();
-        keys.ArrowLeft = true;
-      });
-      btnLeft.addEventListener("touchend", (e) => {
-        e.preventDefault();
-        keys.ArrowLeft = false;
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartTime = Date.now();
       });
 
-      btnRight.addEventListener("touchstart", (e) => {
+      canvas.addEventListener("touchmove", (e) => {
         e.preventDefault();
-        keys.ArrowRight = true;
-      });
-      btnRight.addEventListener("touchend", (e) => {
-        e.preventDefault();
-        keys.ArrowRight = false;
+        const touch = e.touches[0];
+        // Mover la nave a la posición horizontal del dedo
+        player.x = Math.max(
+          player.width / 2,
+          Math.min(canvas.width - player.width / 2, touch.clientX)
+        );
       });
 
-      btnShoot.addEventListener("touchstart", (e) => {
+      canvas.addEventListener("touchend", (e) => {
         e.preventDefault();
-        player.shoot();
+        const touch = e.changedTouches[0];
+        const dx = Math.abs(touch.clientX - touchStartX);
+        const touchDuration = Date.now() - touchStartTime;
+        // Si el desplazamiento es mínimo y la duración corta, considerarlo un tap para disparar
+        if (dx < 10 && touchDuration < 200) {
+          player.shoot();
+        }
+        touchStartX = null;
+        touchStartTime = null;
       });
 
       // Función para generar enemigos (aliens)
@@ -329,7 +303,7 @@
         });
       }
 
-      // Función de colisión (basada en centros)
+      // Función de colisión basada en centros
       function checkCollision(a, b) {
         const dx = a.x - b.x;
         const dy = a.y - b.y;
@@ -379,7 +353,7 @@
         player.update();
         player.draw();
 
-        // Actualizar y dibujar balas y colisiones
+        // Actualizar y dibujar balas y verificar colisiones
         for (let i = bullets.length - 1; i >= 0; i--) {
           const bullet = bullets[i];
           bullet.y += bullet.dy;
@@ -390,7 +364,6 @@
             bullet.WIDTH,
             bullet.HEIGHT
           );
-
           for (let j = enemies.length - 1; j >= 0; j--) {
             const enemy = enemies[j];
             if (checkBulletEnemyCollision(bullet, enemy)) {
@@ -417,7 +390,6 @@
           const enemy = enemies[i];
           enemy.update();
           enemy.draw();
-
           if (checkCollision(player, enemy)) {
             gameOver = true;
             if (score > highScore) {
